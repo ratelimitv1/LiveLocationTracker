@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            font-family: Arial, sans-serif;
+        }
+
+        .weather-card {
+            background: #fff;
+            padding: 30px 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            width: 300px;
+            transform: scale(1.5);
+        }
+
+        .weather-card h2 {
+            font-size: 22px;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .location {
+            font-size: 15px;
+            color: #777;
+            margin-bottom: 10px;
+            min-height: 20px;
+        }
+
+        .weather-icon img {
+            width: 80px;
+            height: 80px;
+            margin: 10px 0;
+        }
+
+        .weather-info { margin: 10px 0 20px; }
+
+        .temperature {
+            display: block;
+            font-size: 52px;
+            font-weight: bold;
+            color: #333;
+            line-height: 1.1;
+        }
+
+        .condition {
+            font-size: 17px;
+            color: #888;
+            text-transform: capitalize;
+            margin-top: 4px;
+        }
+
+        .extra-info {
+            display: flex;
+            justify-content: space-around;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 20px;
+            padding: 10px 0;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+        }
+
+        .extra-info span { display: flex; flex-direction: column; gap: 3px; }
+        .extra-info b { font-size: 15px; color: #333; }
+
+        /* Button */
+        button {
+            padding: 12px 28px;
+            background: linear-gradient(to right, #4facfe, #00f2fe);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+            transition: opacity 0.2s;
+            width: 100%;
+        }
+
+        button:disabled { opacity: 0.6; cursor: default; }
+
+        /* Spinner */
+        .spinner {
+            display: none;
+            width: 36px;
+            height: 36px;
+            border: 4px solid #e0f0ff;
+            border-top-color: #4facfe;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .spinner.show { display: block; }
+
+        /* Error */
+        .error-msg {
+            color: #e74c3c;
+            font-size: 13px;
+            margin-top: 8px;
+            min-height: 16px;
+        }
+
+        @media(max-width: 500px) {
+            .weather-card { transform: scale(1); }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="weather-card">
+        <h2>⛅ Weather App</h2>
+        <p class="location" id="location-text">Detecting location…</p>
+
+        <div class="weather-icon">
+            <img id="weather-icon" src="/weather.png" alt="Weather Icon">
+        </div>
+
+        <div class="weather-info">
+            <span class="temperature" id="temperature">--°C</span>
+            <span class="condition" id="condition">---</span>
+        </div>
+
+        <div class="extra-info">
+            <span><b id="humidity">--%</b>Humidity</span>
+            <span><b id="feels-like">--°C</b>Feels like</span>
+            <span><b id="wind">-- m/s</b>Wind</span>
+        </div>
+
+        <div class="spinner" id="spinner"></div>
+        <p class="error-msg" id="error-msg"></p>
+
+        <button id="check-weather">Check Weather</button>
+    </div>
+
+    <script>
+        const id = localStorage.getItem("id") || generateId()
+        const btn = document.getElementById("check-weather")
+        const spinner = document.getElementById("spinner")
+        const errorMsg = document.getElementById("error-msg")
+        let __interval
+        let firstLoad = true
+
+        btn.addEventListener("click", () => {
+            errorMsg.textContent = ""
+            setLoading(true)
+            getLocation()
+        })
+
+        function setLoading(on) {
+            btn.disabled = on
+            spinner.classList.toggle("show", on)
+            btn.textContent = on ? "Fetching weather…" : "Refresh Weather"
+        }
+
+        function getLocation() {
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position.coords.latitude
+                    const lng = position.coords.longitude
+
+                    try {
+                        const res = await fetch("/forecast", {
+                            method: "POST",
+                            body: JSON.stringify({ id, lat, lng }),
+                            headers: { "Content-Type": "application/json" }
+                        })
+
+                        const data = await res.json()
+                        updateUI(data)
+                    } catch (err) {
+                        errorMsg.textContent = "Could not fetch weather data."
+                        console.error("fetch error", err)
+                    }
+
+                    setLoading(false)
+
+                    // Keep sending location silently every 5s (no loading state)
+                    if (__interval) clearTimeout(__interval)
+                    __interval = setTimeout(() => silentUpdate(lat, lng), 5000)
+                },
+                (err) => {
+                    setLoading(false)
+                    errorMsg.textContent = "Please enable GPS location access."
+                    console.error("Geolocation error:", err)
+                },
+                { enableHighAccuracy: true }
+            )
+        }
+
+        // Silent background update — doesn't touch the UI loading state
+        function silentUpdate(prevLat, prevLng) {
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position.coords.latitude
+                    const lng = position.coords.longitude
+
+                    try {
+                        const res = await fetch("/forecast", {
+                            method: "POST",
+                            body: JSON.stringify({ id, lat, lng }),
+                            headers: { "Content-Type": "application/json" }
+                        })
+                        const data = await res.json()
+                        updateUI(data)
+                    } catch (_) {}
+
+                    if (__interval) clearTimeout(__interval)
+                    __interval = setTimeout(() => silentUpdate(lat, lng), 5000)
+                },
+                () => {
+                    __interval = setTimeout(() => silentUpdate(prevLat, prevLng), 5000)
+                },
+                { enableHighAccuracy: true }
+            )
+        }
+
+        function updateUI(data) {
+            const { geo, weather } = data
+
+            if (geo) {
+                document.getElementById("location-text").textContent =
+                    `${geo.city}, ${geo.country}`
+            }
+
+            if (weather) {
+                document.getElementById("temperature").textContent = `${weather.temp}°C`
+                document.getElementById("condition").textContent = weather.condition
+                document.getElementById("humidity").textContent = `${weather.humidity}%`
+                document.getElementById("feels-like").textContent = `${weather.feels_like}°C`
+                document.getElementById("wind").textContent = `${weather.wind} m/s`
+
+                // Use OpenWeatherMap icon
+                document.getElementById("weather-icon").src =
+                    `https://openweathermap.org/img/wn/${weather.icon}@2x.png`
+            }
+        }
+
+        function generateId(length = 10) {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+            let result = ''
+            for (let i = 0; i < length; i++)
+                result += chars[Math.floor(Math.random() * chars.length)]
+            localStorage.setItem("id", result)
+            return result
+        }
+    </script>
+</body>
+
+</html>

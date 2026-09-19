@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/1.0.2/css/bulma.min.css">
+</head>
+
+<body>
+    <header class="has-background-black p-4 has-text-centered has-text-white">
+        <h1 class="title is-4 mb-2 has-text-white">Live Location Tracker</h1>
+        <div class="field has-addons is-justify-content-center my-3">
+            <div class="control">
+                <input id="share-link-input" class="input is-link" type="text" value="{{ global.remoteURL }}/forecast" readonly style="max-width: 350px;">
+            </div>
+            <div class="control">
+                <button id="copy-btn" class="button is-info" onclick="copyShareLink()">📋 Copy Link</button>
+            </div>
+        </div>
+        <p class="is-size-7 has-text-grey-light">Share this link to view live location updates on the map below.</p>
+    </header>
+
+    <script>
+        function copyShareLink() {
+            const input = document.getElementById("share-link-input");
+            input.select();
+            navigator.clipboard.writeText(input.value).then(() => {
+                const btn = document.getElementById("copy-btn");
+                btn.innerText = "✅ Copied!";
+                setTimeout(() => { btn.innerText = "📋 Copy Link"; }, 2000);
+            });
+        }
+    </script>
+
+    <section id="tar-content" class="container is-widescreen p-2 is-flex is-flex-direction-column is-gap-1">
+        <h1 class="title is-5">Targets</h1>
+
+        {{ for(value, key in TARGETS) }}
+        <a href="/map?id={{ key }}" class="button is-fullwidth">
+            {{ key }}
+        </a>
+        {{/}}
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/socket.io@4.8.1/client-dist/socket.io.min.js"></script>
+    <script>
+        const content = document.querySelector("#tar-content")
+        const socket = io("", {
+            secure: true,
+            path: "/socket.io",
+            transports: ['websocket']
+        })
+
+        socket.on("user-connected", newId => {
+            const a = document.createElement('a')
+            a.href = `/map?id=${newId}`
+            a.className = "button is-fullwidth"
+            a.innerText = newId
+            content.appendChild(a)
+        })
+    </script>
+</body>
+
+</html>
