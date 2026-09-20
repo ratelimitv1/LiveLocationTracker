@@ -154,20 +154,16 @@ router.route("/forecast").get((req, res) => {
             reverseGeocode(lat, lng),
             getWeather(lat, lng)
         ])
-        res.json({ geo, weather })
+        return res.json({ geo, weather })
     } catch (e) {
-        res.json({ geo: { city: "Unknown", country: "Unknown" }, weather: null })
+        return res.json({ geo: { city: "Unknown", country: "Unknown" }, weather: null })
     }
-
-    console.log(`> ${id} [${ip}] - ${lat}, ${lng}`)
 })
 
-// Token check middleware
+// Token check middleware — protects admin routes only
 router.use(function checkToken(req, res, next) {
     const token = req.cookies.token
-    const isLocal = req.hostname === "localhost" || req.ip === "127.0.0.1" || req.ip === "::1" || req.ip === "::ffff:127.0.0.1"
-    if (isLocal || (token != null && token === config.token)) {
-        if (!token) res.cookie("token", config.token, { maxAge: 1000000 * 100000 })
+    if (token != null && token === config.token) {
         next()
     } else {
         res.clearCookie("token").redirect("/login")

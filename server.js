@@ -6,6 +6,7 @@ const tarkine = require("tarkine")
 const http = require('http')
 
 const app = express()
+app.set("trust proxy", true) // Required for Railway — gets real client IP from X-Forwarded-For
 const server = http.createServer(app)
 const io = new socketIO.Server(server)
 const PORT = process.env.PORT || config.port
