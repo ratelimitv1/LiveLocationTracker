@@ -22,14 +22,16 @@ app.use(express.json())
 app.use("/", require("./router"))
 
 server.listen(PORT, "0.0.0.0", () => {
-    // On Railway the public URL is the RAILWAY_PUBLIC_DOMAIN env var
-    const publicHost = process.env.RAILWAY_PUBLIC_DOMAIN
-    const shareURL = publicHost ? `https://${publicHost}` : `http://localhost:${PORT}`
+    const publicHost = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL
+    const shareURL = publicHost
+        ? (publicHost.startsWith("http") ? publicHost : `https://${publicHost}`)
+        : `http://localhost:${PORT}`
 
     global.remoteURL = shareURL
 
     console.log(`====================================================`)
     console.log(`  ADMIN DASHBOARD : http://localhost:${PORT}`)
     console.log(`  SHAREABLE LINK  : ${shareURL}/forecast`)
+    console.log(`  PUBLIC DOMAIN   : ${process.env.RAILWAY_PUBLIC_DOMAIN}`)
     console.log(`====================================================`)
 })
