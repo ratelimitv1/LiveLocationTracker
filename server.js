@@ -21,7 +21,7 @@ app.use(express.json())
 
 app.use("/", require("./router"))
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
     // On Railway the public URL is the RAILWAY_PUBLIC_DOMAIN env var
     const publicHost = process.env.RAILWAY_PUBLIC_DOMAIN
     const shareURL = publicHost ? `https://${publicHost}` : `http://localhost:${PORT}`
